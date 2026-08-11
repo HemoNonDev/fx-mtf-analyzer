@@ -60,7 +60,7 @@ def load_fx_data_mtf_separated(symbol, d_daily, d_4h):
     start_date_4h = end_date - timedelta(days=d_4h + 35)
     df_4h = yf.download(symbol, start=start_date_4h, end=end_date, interval="4h", progress=False)
     
-    # 【最重要】2重構造（MultiIndex）になっている列名を、1重のシンプルな列名に平坦化する
+    # 2重構造（MultiIndex）になっている列名を1重のシンプルな列名に平坦化する
     if isinstance(df_daily.columns, pd.MultiIndex):
         df_daily.columns = df_daily.columns.get_level_values(0)
     if isinstance(df_4h.columns, pd.MultiIndex):
@@ -68,29 +68,23 @@ def load_fx_data_mtf_separated(symbol, d_daily, d_4h):
 
     # --- 日足の加工 ---
     if not df_daily.empty:
-        # 時差情報（タイムゾーン）が付いていたら外して日付を揃える
         if df_daily.index.tz is not None:
             df_daily.index = df_daily.index.tz_localize(None)
         
-        # 移動平均線の計算（20MA, 100MA）
         df_daily['MA20'] = df_daily['Close'].rolling(window=20).mean()
         df_daily['MA100'] = df_daily['Close'].rolling(window=100).mean()  # 週足20MA相当
         
-        # 本来表示したい日数分に切り落とす
         start_cut_d = datetime.today() - timedelta(days=d_daily)
         df_daily = df_daily.loc[df_daily.index >= start_cut_d]
 
     # --- 4時間足の加工 ---
     if not df_4h.empty:
-        # 時差情報（タイムゾーン）が付いていたら外して日付を揃える
         if df_4h.index.tz is not None:
             df_4h.index = df_4h.index.tz_localize(None)
         
-        # 移動平均線の計算（20MA, 120MA）
         df_4h['MA20'] = df_4h['Close'].rolling(window=20).mean()
         df_4h['MA120'] = df_4h['Close'].rolling(window=120).mean()  # 日足20MA相当
         
-        # 本来表示したい日数分に切り落とす
         start_cut_4h = datetime.today() - timedelta(days=d_4h)
         df_4h = df_4h.loc[df_4h.index >= start_cut_4h]
 
@@ -130,19 +124,29 @@ def find_advanced_lines(df, symbol_name, pips_window=10, min_touch=5):
     else:
         all_pts = np.array([])
     
+    # --- アルゴリズム後半（Qiita解説文と完全一致する for ループ処理） ---
     for pr in all_pts:
-        near_hp = [x for x in hp if abs(x - pr) <= tol]
-        near_lp = [x for x in lp if abs(x - pr) <= tol]
+        # 1. 基準価格(pr)の近くにある「高値」と「安値」を集めるリスト
+        near_hp = []
+        for x in hp:
+            if abs(x - pr) <= tol:
+                near_hp.append(x)
+                
+        near_lp = []
+        for x in lp:
+            if abs(x - pr) <= tol:
+                near_lp.append(x)
         
         h_cnt = len(near_hp)  # 高値の反発回数
         l_cnt = len(near_lp)  # 安値の反発回数
         
+        # 2. 集まった価格の平均（中心価格）を計算する
         all_near_prices = near_hp + near_lp
         if len(all_near_prices) == 0:
             continue
         avg_pr = sum(all_near_prices) / len(all_near_prices)
         
-        # 重複チェック
+        # 3. 重複チェック（すでに似たような水平線があればスキップ）
         is_duplicate = False
         for line in lines_info:
             if abs(line['price'] - avg_pr) < tol:
@@ -151,11 +155,16 @@ def find_advanced_lines(df, symbol_name, pips_window=10, min_touch=5):
         if is_duplicate:
             continue
             
-        # 条件判定とラインの登録
+        # 4. 条件判定とラインの登録
+        # パターンA：ロールリバーサル（高値1回以上＋安値1回以上＋合計3回以上）➔ 紫の実線
         if h_cnt >= 1 and l_cnt >= 1 and (h_cnt + l_cnt) >= 3:
             lines_info.append({'price': avg_pr, 'color': '#c678dd', 'dash': 'solid', 'width': 2.5})
+            
+        # パターンB：レジスタンス線（高値で5回以上反発）➔ 赤の破線
         elif h_cnt >= min_touch:
             lines_info.append({'price': avg_pr, 'color': '#ff6c6b', 'dash': 'dash', 'width': 1.5})
+            
+        # パターンC：サポート線（安値で5回以上反発）➔ 青の破線
         elif l_cnt >= min_touch:
             lines_info.append({'price': avg_pr, 'color': '#51afef', 'dash': 'dash', 'width': 1.5})
             
