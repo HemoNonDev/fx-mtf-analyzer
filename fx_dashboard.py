@@ -236,7 +236,7 @@ with st.spinner(f"{selected_pair_name} のデータを解析中..."):
 
 # 最新レートをサイドバーの通貨ペア選択直下に表示
 if not df_4h.empty:
-    latest = float(df_4h['Close'].iloc[-1])
+    latest = float(df_4h['Close'].values.flatten()[-1])
     rate_placeholder.metric(label="最新レート", value=f"{latest:.3f}")
 
 # --- メイン画面描画（上下2段固定） ---
