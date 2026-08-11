@@ -45,7 +45,7 @@ st.sidebar.subheader("📐 チャート画面の設定")
 chart_height = st.sidebar.slider("チャートの縦幅（px）", min_value=300, max_value=800, value=450, step=25)
 
 st.sidebar.markdown("---")
-st.sidebar.caption("※紫太線：ロールリバーサル / 赤破線：抵抗線 / 青破線：支持線")
+st.sidebar.caption("※日足紫線：日足ロールリバーサル / 4Hピンク線：4Hロールリバーサル / 赤破線：抵抗線 / 青破線：支持線")
 
 # --- データ取得・計算関数 ---
 @st.cache_data
@@ -91,7 +91,7 @@ def load_fx_data_mtf_separated(symbol, d_daily, d_4h):
     return df_4h, df_daily
 
 # 水平線アルゴリズム
-def find_advanced_lines(df, symbol_name, pips_window=10, min_touch=5):
+def find_advanced_lines(df, symbol_name, pips_window=10, min_touch=5, rr_color='#c678dd'):
     highs = df['High']
     lows = df['Low']
     hp, lp = [], []
@@ -124,29 +124,19 @@ def find_advanced_lines(df, symbol_name, pips_window=10, min_touch=5):
     else:
         all_pts = np.array([])
     
-    # --- アルゴリズム後半（Qiita解説文と完全一致する for ループ処理） ---
     for pr in all_pts:
-        # 1. 基準価格(pr)の近くにある「高値」と「安値」を集めるリスト
-        near_hp = []
-        for x in hp:
-            if abs(x - pr) <= tol:
-                near_hp.append(x)
-                
-        near_lp = []
-        for x in lp:
-            if abs(x - pr) <= tol:
-                near_lp.append(x)
+        near_hp = [x for x in hp if abs(x - pr) <= tol]
+        near_lp = [x for x in lp if abs(x - pr) <= tol]
         
-        h_cnt = len(near_hp)  # 高値の反発回数
-        l_cnt = len(near_lp)  # 安値の反発回数
+        h_cnt = len(near_hp)
+        l_cnt = len(near_lp)
         
-        # 2. 集まった価格の平均（中心価格）を計算する
         all_near_prices = near_hp + near_lp
         if len(all_near_prices) == 0:
             continue
         avg_pr = sum(all_near_prices) / len(all_near_prices)
         
-        # 3. 重複チェック（すでに似たような水平線があればスキップ）
+        # 重複チェック
         is_duplicate = False
         for line in lines_info:
             if abs(line['price'] - avg_pr) < tol:
@@ -155,16 +145,15 @@ def find_advanced_lines(df, symbol_name, pips_window=10, min_touch=5):
         if is_duplicate:
             continue
             
-        # 4. 条件判定とラインの登録
-        # パターンA：ロールリバーサル（高値1回以上＋安値1回以上＋合計3回以上）➔ 紫の実線
+        # パターンA：ロールリバーサル（時間足に応じた指定色を適用）
         if h_cnt >= 1 and l_cnt >= 1 and (h_cnt + l_cnt) >= 3:
-            lines_info.append({'price': avg_pr, 'color': '#c678dd', 'dash': 'solid', 'width': 2.5})
+            lines_info.append({'price': avg_pr, 'color': rr_color, 'dash': 'solid', 'width': 2.5})
             
-        # パターンB：レジスタンス線（高値で5回以上反発）➔ 赤の破線
+        # パターンB：レジスタンス線（赤の破線）
         elif h_cnt >= min_touch:
             lines_info.append({'price': avg_pr, 'color': '#ff6c6b', 'dash': 'dash', 'width': 1.5})
             
-        # パターンC：サポート線（安値で5回以上反発）➔ 青の破線
+        # パターンC：サポート線（青の破線）
         elif l_cnt >= min_touch:
             lines_info.append({'price': avg_pr, 'color': '#51afef', 'dash': 'dash', 'width': 1.5})
             
@@ -183,16 +172,20 @@ def create_plotly_chart(df, is_daily, symbol_name, pips_win, min_t, label_text, 
         showlegend=False
     )])
     
-    # 移動平均線（MA）の描画
+    # 移動平均線（MA）の描画とロールリバーサル色の分岐
     if is_daily:
-        fig.add_trace(go.Scatter(x=df.index, y=df['MA20'], mode='lines', name='日足 20MA', line=dict(color='#ff9800', width=1.2)))
+        # 日足チャート：日足20MA（オレンジ）、週足20MA相当（青）
+        fig.add_trace(go.Scatter(x=df.index, y=df['MA20'], mode='lines', name='日足 20MA', line=dict(color='#ff9800', width=1.5)))
         fig.add_trace(go.Scatter(x=df.index, y=df['MA100'], mode='lines', name='週足 20MA相当', line=dict(color='#1976d2', width=2.0)))
+        rr_color = '#c678dd'  # 日足用ロールリバーサル（紫色）
     else:
-        fig.add_trace(go.Scatter(x=df.index, y=df['MA20'], mode='lines', name='4H 20MA', line=dict(color='#ff9800', width=1.2)))
-        fig.add_trace(go.Scatter(x=df.index, y=df['MA120'], mode='lines', name='日足 20MA相当', line=dict(color='#1976d2', width=2.0)))
+        # 4時間足チャート：4H20MA（緑）、日足20MA相当（120MA：オレンジ）
+        fig.add_trace(go.Scatter(x=df.index, y=df['MA20'], mode='lines', name='4H 20MA', line=dict(color='#4caf50', width=1.5)))
+        fig.add_trace(go.Scatter(x=df.index, y=df['MA120'], mode='lines', name='日足 20MA相当', line=dict(color='#ff9800', width=2.0)))
+        rr_color = '#e06c75'  # 4時間足用ロールリバーサル（ピンク/マゼンタ色）
     
     # 水平線を描画
-    lines = find_advanced_lines(df, symbol_name, pips_win, min_t)
+    lines = find_advanced_lines(df, symbol_name, pips_win, min_t, rr_color=rr_color)
     for l in lines:
         fig.add_hline(y=l['price'], line_dash=l['dash'], line_color=l['color'], line_width=l['width'], opacity=0.7)
     
@@ -220,10 +213,11 @@ def create_plotly_chart(df, is_daily, symbol_name, pips_win, min_t, label_text, 
 with st.spinner(f"{selected_pair_name} のデータを解析中..."):
     df_4h, df_daily = load_fx_data_mtf_separated(selected_symbol, days_daily, days_4h)
 
-# 最新レートをサイドバーに表示
+# 最新レートをサイドバーに表示（桁数を自動判定）
 if not df_4h.empty:
     latest = float(df_4h['Close'].iloc[-1])
-    rate_placeholder.metric(label="最新レート", value=f"{latest:.3f}")
+    digits = 3 if "JPY" in selected_symbol else 5
+    rate_placeholder.metric(label="最新レート", value=f"{latest:.{digits}f}")
 
 # --- メイン画面描画（上下2段固定） ---
 if not df_daily.empty:
