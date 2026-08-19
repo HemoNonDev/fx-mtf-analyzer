@@ -21,7 +21,7 @@ ticker_dict = {
     "AUD/USD (豪ドルドル)": "AUDUSD=X",
     "NZD/JPY (キウイ円)": "NZDJPY=X",
     "USD/CAD (ドルカナダ)": "USDCAD=X",
-    "USD/CHF (ドルフラン)": "USDCHF=X"
+    "USD/CHF (ドルフラン)": "USDCHF=X",
     "BTC/USD (ビットコイン)": "BTC-USD",
     "GOLD (金先物)": "GC=F"
 }
