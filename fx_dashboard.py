@@ -91,141 +91,95 @@ def load_fx_data_mtf_separated(symbol, d_daily, d_4h):
 
     return df_4h, df_daily
 
-# 水平線アルゴリズム
-def find_advanced_lines(df, symbol_name, pips_window=10, min_touch=5, rr_color='#c678dd'):
-    highs = df['High']
-    lows = df['Low']
+# 水平線（ゾーン）抽出アルゴリズム
+def find_advanced_lines(
+    df,
+    symbol_name,
+    pips_window=10,
+    min_touch=3,
+    zone_color="rgba(180, 100, 255, 0.25)",
+):
+    highs = df["High"]
+    lows = df["Low"]
     hp, lp = [], []
-    
-    # ピボット（山・谷）の抽出
-    for i in range(3, len(df)-3):
-        # 高値の山（ピボットハイ）判定
-        if (highs.iloc[i] > highs.iloc[i-1] and highs.iloc[i] > highs.iloc[i-2] and highs.iloc[i] > highs.iloc[i-3] and
-            highs.iloc[i] > highs.iloc[i+1] and highs.iloc[i] > highs.iloc[i+2] and highs.iloc[i] > highs.iloc[i+3]):
-            hp.append(highs.iloc[i])
-            
-        # 安値の谷（ピボットロー）判定
-        if (lows.iloc[i] < lows.iloc[i-1] and lows.iloc[i] < lows.iloc[i-2] and lows.iloc[i] < lows.iloc[i-3] and
-            lows.iloc[i] < lows.iloc[i+1] and lows.iloc[i] < lows.iloc[i+2] and lows.iloc[i] < lows.iloc[i+3]):
-            lp.append(lows.iloc[i])
-    
-    # # 1pipの単位判定
-    # if "JPY" in symbol_name:
-    #     pip_unit = 0.01
-    # else:
-    #     pip_unit = 0.0001
-        
-    # tol = (pips_window / 2.0) * pip_unit
-    # hp, lp = np.array(hp), np.array(lp)
-    # lines_info = []
-    
-    # # 高値と安値の配列を結合
-    # if len(hp) > 0 and len(lp) > 0:
-    #     all_pts = np.concatenate([hp, lp])
-    # else:
-    #     all_pts = np.array([])
-    
-    # for pr in all_pts:
-    #     near_hp = [x for x in hp if abs(x - pr) <= tol]
-    #     near_lp = [x for x in lp if abs(x - pr) <= tol]
-        
-    #     h_cnt = len(near_hp)
-    #     l_cnt = len(near_lp)
-        
-    #     all_near_prices = near_hp + near_lp
-    #     if len(all_near_prices) == 0:
-    #         continue
-    #     avg_pr = sum(all_near_prices) / len(all_near_prices)
-        
-    #     # 重複チェック
-    #     is_duplicate = False
-    #     for line in lines_info:
-    #         if abs(line['price'] - avg_pr) < tol:
-    #             is_duplicate = True
-    #             break
-    #     if is_duplicate:
-    #         continue
 
-    # 1pipの単位判定
+    # 1. ピボット（山・谷）の抽出
+    for i in range(3, len(df) - 3):
+        # 高値の山（ピボットハイ）判定
+        if (
+            highs.iloc[i] > highs.iloc[i - 1]
+            and highs.iloc[i] > highs.iloc[i - 2]
+            and highs.iloc[i] > highs.iloc[i - 3]
+            and highs.iloc[i] > highs.iloc[i + 1]
+            and highs.iloc[i] > highs.iloc[i + 2]
+            and highs.iloc[i] > highs.iloc[i + 3]
+        ):
+            hp.append(highs.iloc[i])
+
+        # 安値の谷（ピボットロー）判定
+        if (
+            lows.iloc[i] < lows.iloc[i - 1]
+            and lows.iloc[i] < lows.iloc[i - 2]
+            and lows.iloc[i] < lows.iloc[i - 3]
+            and lows.iloc[i] < lows.iloc[i + 1]
+            and lows.iloc[i] < lows.iloc[i + 2]
+            and lows.iloc[i] < lows.iloc[i + 3]
+        ):
+            lp.append(lows.iloc[i])
+
+    # 2. 1pipの単位判定と設定
     if "JPY" in symbol_name:
         pip_unit = 0.01
     else:
         pip_unit = 0.0001
-        
+
     half_width = (pips_window / 2.0) * pip_unit  # ±5pips相当の幅
     hp, lp = np.array(hp), np.array(lp)
-    zones_info = []  # 登録用のリスト（lines_infoから名称変更）
-    
-    # 高値と安値の配列を結合
-    if len(hp) > 0 and len(lp) > 0:
+    zones_info = []
+
+    # 高値と安値の配列を結合（どちらか片方でもあれば実行）
+    if len(hp) > 0 or len(lp) > 0:
         all_pts = np.concatenate([hp, lp])
     else:
-        all_pts = np.array([])
-    
+        return []
+
+    # 3. ゾーンの判定と重複チェック
     for center_pr in all_pts:
-        # 帯（ゾーン）の下限価格(y0)と上限価格(y1)を設定
         y0 = center_pr - half_width
         y1 = center_pr + half_width
-        
-        # 1. 帯の上側（サポート）で安値が反応した回数
-        support_count = np.sum((lp >= y0) & (lp <= y1))
-        
-        # 2. 帯の下側（レジスタンス）で高値が反応した回数
-        resistance_count = np.sum((hp >= y0) & (hp <= y1))
-        
-        # 【条件】サポート3回以上 かつ レジスタンス3回以上（回数は任意）
-        if support_count >= 3 and resistance_count >= 3:
-            
-            # 重複チェック（すでに登録済みの帯と中心価格が近くないか）
-            is_duplicate = False
-            for zone in zones_info:
-                if abs(zone['center'] - center_pr) < (pips_window * pip_unit):
-                    is_duplicate = True
-                    break
-            
-            if is_duplicate:
-                continue
-                
-            
 
-        # --- ここから条件分岐と登録処理 ---
-        
-        # 条件を満たしたロールリバーサル帯（サポート・レジスタンス両方で反発）のみを追加
+        # 帯の上側（サポート）および下側（レジスタンス）での反発回数をカウント
+        support_count = np.sum((lp >= y0) & (lp <= y1))
+        resistance_count = np.sum((hp >= y0) & (hp <= y1))
+
+        # 条件：サポート1回以上 かつ レジスタンス1回以上 かつ 合計反発数がmin_touch以上
         if (
             support_count >= 1
             and resistance_count >= 1
             and (support_count + resistance_count) >= min_touch
         ):
+
+            # 重複チェック（登録済みのゾーン中心価格と離れているか）
+            is_duplicate = False
+            for zone in zones_info:
+                if abs(zone["center"] - center_pr) < (pips_window * pip_unit):
+                    is_duplicate = True
+                    break
+
+            if is_duplicate:
+                continue
+
+            # 条件を満たしたロールリバーサル帯を追加
             zones_info.append({
                 "y0": y0,
                 "y1": y1,
                 "center": center_pr,
-                "fillcolor": "rgba(180, 100, 255, 0.25)",  # 描画用の色情報（必須）
+                "fillcolor": zone_color,
                 "type": "roll_reversal",
-                "support_count": support_count,  # 必要であれば保持
-                "resistance_count": resistance_count,  # 必要であれば保持
+                "support_count": support_count,
+                "resistance_count": resistance_count,
             })
-            
-        # # パターンB：レジスタンス帯（赤系の半透明）
-        # elif resistance_count >= min_touch:
-        #     zones_info.append({
-        #         'y0': y0,
-        #         'y1': y1,
-        #         'center': center_pr,
-        #         'fillcolor': 'rgba(255, 108, 107, 0.2)',  # #ff6c6bの半透明
-        #         'type': 'resistance'
-        #     })
-            
-        # # パターンC：サポート帯（青系の半透明）
-        # elif support_count >= min_touch:
-        #     zones_info.append({
-        #         'y0': y0,
-        #         'y1': y1,
-        #         'center': center_pr,
-        #         'fillcolor': 'rgba(81, 175, 239, 0.2)',  # #51afefの半透明
-        #         'type': 'support'
-        #     })
-            
+
     return zones_info
 
 # チャート作成関数
