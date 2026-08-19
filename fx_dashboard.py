@@ -12,10 +12,10 @@ st.title("📊 FX Interactive MTF Dashboard")
 
 # 通貨ペアの選択リスト
 ticker_dict = {
-    "USD/JPY (ドル円)": "JPY=X",
+    "USD/JPY (ドル円)": "USDJPY=X",
     "EUR/JPY (ユーロ円)": "EURJPY=X",
     "GBP/JPY (ポンド円)": "GBPJPY=X",
-    "EUR/USD (ユーロドル)": "EUR=X",
+    "EUR/USD (ユーロドル)": "EURUSD=X",
     "GBP/USD (ポンドドル)": "GBPUSD=X",
     "AUD/JPY (豪ドル円)": "AUDJPY=X",
     "NZD/JPY (キウイ円)": "NZDJPY=X",
@@ -220,25 +220,25 @@ def find_advanced_lines(df, symbol_name, pips_window=10, min_touch=5, rr_color='
                 'type': 'roll_reversal'
             })
             
-        # パターンB：レジスタンス帯（赤系の半透明）
-        elif resistance_count >= min_touch:
-            zones_info.append({
-                'y0': y0,
-                'y1': y1,
-                'center': center_pr,
-                'fillcolor': 'rgba(255, 108, 107, 0.2)',  # #ff6c6bの半透明
-                'type': 'resistance'
-            })
+        # # パターンB：レジスタンス帯（赤系の半透明）
+        # elif resistance_count >= min_touch:
+        #     zones_info.append({
+        #         'y0': y0,
+        #         'y1': y1,
+        #         'center': center_pr,
+        #         'fillcolor': 'rgba(255, 108, 107, 0.2)',  # #ff6c6bの半透明
+        #         'type': 'resistance'
+        #     })
             
-        # パターンC：サポート帯（青系の半透明）
-        elif support_count >= min_touch:
-            zones_info.append({
-                'y0': y0,
-                'y1': y1,
-                'center': center_pr,
-                'fillcolor': 'rgba(81, 175, 239, 0.2)',  # #51afefの半透明
-                'type': 'support'
-            })
+        # # パターンC：サポート帯（青系の半透明）
+        # elif support_count >= min_touch:
+        #     zones_info.append({
+        #         'y0': y0,
+        #         'y1': y1,
+        #         'center': center_pr,
+        #         'fillcolor': 'rgba(81, 175, 239, 0.2)',  # #51afefの半透明
+        #         'type': 'support'
+        #     })
             
     return zones_info
 
