@@ -40,28 +40,29 @@ days_4h = st.sidebar.slider("4時間足の表示期間（日数）", min_value=1
 
 st.sidebar.subheader("🎯 水平線の設定")
 pips_range = st.sidebar.number_input("価格帯の幅（pips）", min_value=5, max_value=50, value=10)
-min_touches = st.sidebar.number_input("最小反発回数（点数）", min_value=2, max_value=10, value=5)
+min_touches = st.sidebar.number_input("最小反発回数（点数）", min_value=2, max_value=10, value=3)
 
 st.sidebar.subheader("📐 チャート画面の設定")
 chart_height = st.sidebar.slider("チャートの縦幅（px）", min_value=300, max_value=800, value=450, step=25)
 
 st.sidebar.markdown("---")
-st.sidebar.caption("※日足紫線：日足ロールリバーサル / 4Hピンク線：4Hロールリバーサル / 赤破線：抵抗線 / 青破線：支持線")
+st.sidebar.caption("※オレンジ帯：日足サポレジゾーン / 紫帯：4時間足サポレジゾーン")
 
 # --- データ取得・計算関数 ---
-@st.cache_data
+@st.cache_data(ttl=3600)  # 1時間キャッシュ（yfinanceのAPI負荷軽減と自動更新）
 def load_fx_data_mtf_separated(symbol, d_daily, d_4h):
-    end_date = datetime.today()
+    # 時刻成分を排除し、今日の00:00:00を取得
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     
-    # 1. 日足データ取得
-    start_date_daily = end_date - timedelta(days=d_daily + 120)
-    df_daily = yf.download(symbol, start=start_date_daily, end=end_date, interval="1d", progress=False)
+    # 1. 日足データ取得（MA100計算用に120日分のバッファ）
+    start_date_daily = today - timedelta(days=d_daily + 120)
+    df_daily = yf.download(symbol, start=start_date_daily, end=today, interval="1d", progress=False)
     
-    # 2. 4時間足データ取得
-    start_date_4h = end_date - timedelta(days=d_4h + 35)
-    df_4h = yf.download(symbol, start=start_date_4h, end=end_date, interval="4h", progress=False)
+    # 2. 4時間足データ取得（MA120計算用に35日分のバッファ）
+    start_date_4h = today - timedelta(days=d_4h + 35)
+    df_4h = yf.download(symbol, start=start_date_4h, end=today, interval="4h", progress=False)
     
-    # 2重構造（MultiIndex）になっている列名を1重のシンプルな列名に平坦化する
+    # 2重構造（MultiIndex）の列名を平坦化
     if isinstance(df_daily.columns, pd.MultiIndex):
         df_daily.columns = df_daily.columns.get_level_values(0)
     if isinstance(df_4h.columns, pd.MultiIndex):
@@ -75,7 +76,8 @@ def load_fx_data_mtf_separated(symbol, d_daily, d_4h):
         df_daily['MA20'] = df_daily['Close'].rolling(window=20).mean()
         df_daily['MA100'] = df_daily['Close'].rolling(window=100).mean()  # 週足20MA相当
         
-        start_cut_d = datetime.today() - timedelta(days=d_daily)
+        # 時刻なしの基準日で正確にスライス
+        start_cut_d = today - timedelta(days=d_daily)
         df_daily = df_daily.loc[df_daily.index >= start_cut_d]
 
     # --- 4時間足の加工 ---
@@ -86,7 +88,7 @@ def load_fx_data_mtf_separated(symbol, d_daily, d_4h):
         df_4h['MA20'] = df_4h['Close'].rolling(window=20).mean()
         df_4h['MA120'] = df_4h['Close'].rolling(window=120).mean()  # 日足20MA相当
         
-        start_cut_4h = datetime.today() - timedelta(days=d_4h)
+        start_cut_4h = today - timedelta(days=d_4h)
         df_4h = df_4h.loc[df_4h.index >= start_cut_4h]
 
     return df_4h, df_daily
