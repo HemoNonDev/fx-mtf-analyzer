@@ -13,15 +13,17 @@ st.title("📊 FX Interactive MTF Dashboard")
 # 通貨ペアの選択リスト
 ticker_dict = {
     "USD/JPY (ドル円)": "USDJPY=X",
-    "EUR/JPY (ユーロ円)": "EURJPY=X",
-    "GBP/JPY (ポンド円)": "GBPJPY=X",
     "EUR/USD (ユーロドル)": "EURUSD=X",
     "GBP/USD (ポンドドル)": "GBPUSD=X",
     "EUR/GBP (ユーロポンド)": "EURGBP=X",
+    "EUR/JPY (ユーロ円)": "EURJPY=X",
+    "GBP/JPY (ポンド円)": "GBPJPY=X",    
     "AUD/USD (豪ドルドル)": "AUDUSD=X",
     "NZD/JPY (キウイ円)": "NZDJPY=X",
     "USD/CAD (ドルカナダ)": "USDCAD=X",
     "USD/CHF (ドルフラン)": "USDCHF=X"
+    "BTC/USD (ビットコイン)": "BTC-USD",
+    "GOLD (金先物)": "GC=F"
 }
 
 # --- サイドバーの設定 ---
@@ -32,7 +34,7 @@ selected_symbol = ticker_dict[selected_pair_name]
 rate_placeholder = st.sidebar.empty()
 
 st.sidebar.markdown("---")
-st.sidebar.header("🔧 設定パネル")
+st.sidebar.header("設定パネル")
 
 st.sidebar.subheader("📅 表示期間の設定")
 days_daily = st.sidebar.slider("日足の表示期間（日数）", min_value=30, max_value=365, value=240, step=10)
