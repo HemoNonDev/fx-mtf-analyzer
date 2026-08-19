@@ -186,39 +186,24 @@ def find_advanced_lines(df, symbol_name, pips_window=10, min_touch=5, rr_color='
             if is_duplicate:
                 continue
                 
-            # 条件を満たした帯（ゾーン）情報を追加
-            zones_info.append({
-                'y0': y0,
-                'y1': y1,
-                'center': center_pr,
-                'support_count': support_count,
-                'resistance_count': resistance_count
-            })
             
-    #     # パターンA：ロールリバーサル（時間足に応じた指定色を適用）
-    #     if h_cnt >= 1 and l_cnt >= 1 and (h_cnt + l_cnt) >= 3:
-    #         lines_info.append({'price': avg_pr, 'color': rr_color, 'dash': 'solid', 'width': 2.5})
-            
-    #     # パターンB：レジスタンス線（赤の破線）
-    #     elif h_cnt >= min_touch:
-    #         lines_info.append({'price': avg_pr, 'color': '#ff6c6b', 'dash': 'dash', 'width': 1.5})
-            
-    #     # パターンC：サポート線（青の破線）
-    #     elif l_cnt >= min_touch:
-    #         lines_info.append({'price': avg_pr, 'color': '#51afef', 'dash': 'dash', 'width': 1.5})
-            
-    # return lines_info
 
         # --- ここから条件分岐と登録処理 ---
         
-        # パターンA：ロールリバーサル帯（サポート・レジスタンス両方で反発）
-        if support_count >= 1 and resistance_count >= 1 and (support_count + resistance_count) >= 3:
+        # 条件を満たしたロールリバーサル帯（サポート・レジスタンス両方で反発）のみを追加
+        if (
+            support_count >= 1
+            and resistance_count >= 1
+            and (support_count + resistance_count) >= min_touch
+        ):
             zones_info.append({
-                'y0': y0,
-                'y1': y1,
-                'center': center_pr,
-                'fillcolor': 'rgba(180, 100, 255, 0.25)',  # ロールリバーサル用の指定色（半透明）
-                'type': 'roll_reversal'
+                "y0": y0,
+                "y1": y1,
+                "center": center_pr,
+                "fillcolor": "rgba(180, 100, 255, 0.25)",  # 描画用の色情報（必須）
+                "type": "roll_reversal",
+                "support_count": support_count,  # 必要であれば保持
+                "resistance_count": resistance_count,  # 必要であれば保持
             })
             
         # # パターンB：レジスタンス帯（赤系の半透明）
@@ -272,6 +257,9 @@ def create_plotly_chart(df, is_daily, symbol_name, pips_win, min_t, label_text, 
     zones_info = find_advanced_lines(df, symbol_name, pips_win, min_t, rr_color=rr_color)
     # Plotlyへの描画処理
     for zone in zones_info:
+        # 'fillcolor' が存在しない場合はデフォルトの紫色（半透明）を使用する
+        fill_color = zone.get("fillcolor", "rgba(180, 100, 255, 0.25)")
+        
         fig.add_hrect(
             y0=zone["y0"],
             y1=zone["y1"],
