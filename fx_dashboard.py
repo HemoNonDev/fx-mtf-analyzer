@@ -200,15 +200,15 @@ def create_plotly_chart(df, is_daily, symbol_name, pips_win, min_t, label_text, 
         # 日足チャート：日足20MA（オレンジ）、週足20MA相当（青）
         fig.add_trace(go.Scatter(x=df.index, y=df['MA20'], mode='lines', name='日足 20MA', line=dict(color='#ff9800', width=1.5)))
         fig.add_trace(go.Scatter(x=df.index, y=df['MA100'], mode='lines', name='週足 20MA相当', line=dict(color='#1976d2', width=2.0)))
-        rr_color = '#c678dd'  # 日足用ロールリバーサル（紫色）
+        chart_zone_color = "rgba(255, 165, 0, 0.25)"   # 日足：オレンジの半透明（25%）
     else:
         # 4時間足チャート：4H20MA（緑）、日足20MA相当（120MA：オレンジ）
         fig.add_trace(go.Scatter(x=df.index, y=df['MA20'], mode='lines', name='4H 20MA', line=dict(color='#4caf50', width=1.5)))
         fig.add_trace(go.Scatter(x=df.index, y=df['MA120'], mode='lines', name='日足 20MA相当', line=dict(color='#ff9800', width=2.0)))
-        rr_color = '#e06c75'  # 4時間足用ロールリバーサル（ピンク/マゼンタ色）
+        chart_zone_color = "rgba(180, 100, 255, 0.25)" # 4時間足：紫の半透明（25%）
     
     # 水平線を描画
-    zones_info = find_advanced_lines(df, symbol_name, pips_win, min_t, zone_color=rr_color)
+    zones_info = find_advanced_lines(df, symbol_name, pips_win, min_t, zone_color=chart_zone_color)
     # Plotlyへの描画処理
     for zone in zones_info:
         # 'fillcolor' が存在しない場合はデフォルトの紫色（半透明）を使用する
