@@ -108,15 +108,52 @@ def find_advanced_lines(df, symbol_name, pips_window=10, min_touch=5, rr_color='
             lows.iloc[i] < lows.iloc[i+1] and lows.iloc[i] < lows.iloc[i+2] and lows.iloc[i] < lows.iloc[i+3]):
             lp.append(lows.iloc[i])
     
+    # # 1pipの単位判定
+    # if "JPY" in symbol_name:
+    #     pip_unit = 0.01
+    # else:
+    #     pip_unit = 0.0001
+        
+    # tol = (pips_window / 2.0) * pip_unit
+    # hp, lp = np.array(hp), np.array(lp)
+    # lines_info = []
+    
+    # # 高値と安値の配列を結合
+    # if len(hp) > 0 and len(lp) > 0:
+    #     all_pts = np.concatenate([hp, lp])
+    # else:
+    #     all_pts = np.array([])
+    
+    # for pr in all_pts:
+    #     near_hp = [x for x in hp if abs(x - pr) <= tol]
+    #     near_lp = [x for x in lp if abs(x - pr) <= tol]
+        
+    #     h_cnt = len(near_hp)
+    #     l_cnt = len(near_lp)
+        
+    #     all_near_prices = near_hp + near_lp
+    #     if len(all_near_prices) == 0:
+    #         continue
+    #     avg_pr = sum(all_near_prices) / len(all_near_prices)
+        
+    #     # 重複チェック
+    #     is_duplicate = False
+    #     for line in lines_info:
+    #         if abs(line['price'] - avg_pr) < tol:
+    #             is_duplicate = True
+    #             break
+    #     if is_duplicate:
+    #         continue
+
     # 1pipの単位判定
     if "JPY" in symbol_name:
         pip_unit = 0.01
     else:
         pip_unit = 0.0001
         
-    tol = (pips_window / 2.0) * pip_unit
+    half_width = (pips_window / 2.0) * pip_unit  # ±5pips相当の幅
     hp, lp = np.array(hp), np.array(lp)
-    lines_info = []
+    zones_info = []  # 登録用のリスト（lines_infoから名称変更）
     
     # 高値と安値の配列を結合
     if len(hp) > 0 and len(lp) > 0:
@@ -124,40 +161,86 @@ def find_advanced_lines(df, symbol_name, pips_window=10, min_touch=5, rr_color='
     else:
         all_pts = np.array([])
     
-    for pr in all_pts:
-        near_hp = [x for x in hp if abs(x - pr) <= tol]
-        near_lp = [x for x in lp if abs(x - pr) <= tol]
+    for center_pr in all_pts:
+        # 帯（ゾーン）の下限価格(y0)と上限価格(y1)を設定
+        y0 = center_pr - half_width
+        y1 = center_pr + half_width
         
-        h_cnt = len(near_hp)
-        l_cnt = len(near_lp)
+        # 1. 帯の上側（サポート）で安値が反応した回数
+        support_count = np.sum((lp >= y0) & (lp <= y1))
         
-        all_near_prices = near_hp + near_lp
-        if len(all_near_prices) == 0:
-            continue
-        avg_pr = sum(all_near_prices) / len(all_near_prices)
+        # 2. 帯の下側（レジスタンス）で高値が反応した回数
+        resistance_count = np.sum((hp >= y0) & (hp <= y1))
         
-        # 重複チェック
-        is_duplicate = False
-        for line in lines_info:
-            if abs(line['price'] - avg_pr) < tol:
-                is_duplicate = True
-                break
-        if is_duplicate:
-            continue
+        # 【条件】サポート3回以上 かつ レジスタンス3回以上（回数は任意）
+        if support_count >= 3 and resistance_count >= 3:
             
-        # パターンA：ロールリバーサル（時間足に応じた指定色を適用）
-        if h_cnt >= 1 and l_cnt >= 1 and (h_cnt + l_cnt) >= 3:
-            lines_info.append({'price': avg_pr, 'color': rr_color, 'dash': 'solid', 'width': 2.5})
+            # 重複チェック（すでに登録済みの帯と中心価格が近くないか）
+            is_duplicate = False
+            for zone in zones_info:
+                if abs(zone['center'] - center_pr) < (pips_window * pip_unit):
+                    is_duplicate = True
+                    break
             
-        # パターンB：レジスタンス線（赤の破線）
-        elif h_cnt >= min_touch:
-            lines_info.append({'price': avg_pr, 'color': '#ff6c6b', 'dash': 'dash', 'width': 1.5})
+            if is_duplicate:
+                continue
+                
+            # 条件を満たした帯（ゾーン）情報を追加
+            zones_info.append({
+                'y0': y0,
+                'y1': y1,
+                'center': center_pr,
+                'support_count': support_count,
+                'resistance_count': resistance_count
+            })
             
-        # パターンC：サポート線（青の破線）
-        elif l_cnt >= min_touch:
-            lines_info.append({'price': avg_pr, 'color': '#51afef', 'dash': 'dash', 'width': 1.5})
+    #     # パターンA：ロールリバーサル（時間足に応じた指定色を適用）
+    #     if h_cnt >= 1 and l_cnt >= 1 and (h_cnt + l_cnt) >= 3:
+    #         lines_info.append({'price': avg_pr, 'color': rr_color, 'dash': 'solid', 'width': 2.5})
             
-    return lines_info
+    #     # パターンB：レジスタンス線（赤の破線）
+    #     elif h_cnt >= min_touch:
+    #         lines_info.append({'price': avg_pr, 'color': '#ff6c6b', 'dash': 'dash', 'width': 1.5})
+            
+    #     # パターンC：サポート線（青の破線）
+    #     elif l_cnt >= min_touch:
+    #         lines_info.append({'price': avg_pr, 'color': '#51afef', 'dash': 'dash', 'width': 1.5})
+            
+    # return lines_info
+
+        # --- ここから条件分岐と登録処理 ---
+        
+        # パターンA：ロールリバーサル帯（サポート・レジスタンス両方で反発）
+        if support_count >= 1 and resistance_count >= 1 and (support_count + resistance_count) >= 3:
+            zones_info.append({
+                'y0': y0,
+                'y1': y1,
+                'center': center_pr,
+                'fillcolor': 'rgba(180, 100, 255, 0.25)',  # ロールリバーサル用の指定色（半透明）
+                'type': 'roll_reversal'
+            })
+            
+        # パターンB：レジスタンス帯（赤系の半透明）
+        elif resistance_count >= min_touch:
+            zones_info.append({
+                'y0': y0,
+                'y1': y1,
+                'center': center_pr,
+                'fillcolor': 'rgba(255, 108, 107, 0.2)',  # #ff6c6bの半透明
+                'type': 'resistance'
+            })
+            
+        # パターンC：サポート帯（青系の半透明）
+        elif support_count >= min_touch:
+            zones_info.append({
+                'y0': y0,
+                'y1': y1,
+                'center': center_pr,
+                'fillcolor': 'rgba(81, 175, 239, 0.2)',  # #51afefの半透明
+                'type': 'support'
+            })
+            
+    return zones_info
 
 # チャート作成関数
 def create_plotly_chart(df, is_daily, symbol_name, pips_win, min_t, label_text, height=450):
@@ -186,8 +269,15 @@ def create_plotly_chart(df, is_daily, symbol_name, pips_win, min_t, label_text, 
     
     # 水平線を描画
     lines = find_advanced_lines(df, symbol_name, pips_win, min_t, rr_color=rr_color)
-    for l in lines:
-        fig.add_hline(y=l['price'], line_dash=l['dash'], line_color=l['color'], line_width=l['width'], opacity=0.7)
+    # Plotlyへの描画処理
+    for zone in zones_info:
+        fig.add_hrect(
+            y0=zone["y0"],
+            y1=zone["y1"],
+            fillcolor=zone["fillcolor"],  # 条件分岐で設定した色を動的に適用
+            line_width=0,                 # 枠線なし
+            layer="below",                # ローソク足の裏に配置
+        )
     
     # 左上の "Daily" / "4H" ラベル
     fig.add_annotation(
