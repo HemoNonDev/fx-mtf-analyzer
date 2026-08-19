@@ -268,7 +268,7 @@ def create_plotly_chart(df, is_daily, symbol_name, pips_win, min_t, label_text, 
         rr_color = '#e06c75'  # 4時間足用ロールリバーサル（ピンク/マゼンタ色）
     
     # 水平線を描画
-    lines = find_advanced_lines(df, symbol_name, pips_win, min_t, rr_color=rr_color)
+    zones_info = find_advanced_lines(df, symbol_name, pips_win, min_t, rr_color=rr_color)
     # Plotlyへの描画処理
     for zone in zones_info:
         fig.add_hrect(
