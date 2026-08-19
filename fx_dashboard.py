@@ -141,7 +141,7 @@ def find_advanced_lines(
 
     # 高値と安値の配列を結合（どちらか片方でもあれば実行）
     if len(hp) > 0 or len(lp) > 0:
-        all_pts = np.concatenate([hp, lp])
+        all_pts = np.sort(np.concatenate([hp, lp]))  # ソートを追加して重複判定を安定化
     else:
         return []
 
@@ -214,12 +214,12 @@ def create_plotly_chart(df, is_daily, symbol_name, pips_win, min_t, label_text, 
     # Plotlyへの描画処理
     for zone in zones_info:
         # 'fillcolor' が存在しない場合はデフォルトの紫色（半透明）を使用する
-        fill_color = zone.get("fillcolor", "rgba(180, 100, 255, 0.25)")
+        fill_color = zone.get("fillcolor", chart_zone_color)
         
         fig.add_hrect(
             y0=zone["y0"],
             y1=zone["y1"],
-            fillcolor=zone["fillcolor"],  # 条件分岐で設定した色を動的に適用
+            fillcolor=fill_color, # 条件分岐で設定した色を動的に適用
             line_width=0,                 # 枠線なし
             layer="below",                # ローソク足の裏に配置
         )
@@ -258,7 +258,13 @@ if not df_4h.empty:
 if not df_daily.empty:
     fig_daily = create_plotly_chart(df_daily, True, selected_pair_name, pips_range, min_touches, label_text="Daily", height=chart_height)
     st.plotly_chart(fig_daily, use_container_width=True)
+else:
+    st.error("日足データの取得に失敗しました。時間をおいて再試行してください。")
 
 if not df_4h.empty:
     fig_4h = create_plotly_chart(df_4h, False, selected_pair_name, pips_range, min_touches, label_text="4H", height=chart_height)
     st.plotly_chart(fig_4h, use_container_width=True)
+else:
+    st.error(
+        "4時間足データの取得に失敗しました。時間をおいて再試行してください。"
+    )
