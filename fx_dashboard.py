@@ -33,7 +33,8 @@ selected_symbol = ticker_dict[selected_pair_name]
 # 最新レート表示用のプレースホルダーをサイドバーに作成
 rate_placeholder = st.sidebar.empty()
 
-st.sidebar.markdown("---")
+# st.sidebar.markdown("---")
+st.sidebar.markdown("<hr style='margin: 8px 0;'>", unsafe_allow_html=True)
 st.sidebar.header("設定パネル")
 
 st.sidebar.subheader("📅 表示期間の設定")
