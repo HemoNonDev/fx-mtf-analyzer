@@ -17,10 +17,11 @@ ticker_dict = {
     "GBP/JPY (ポンド円)": "GBPJPY=X",
     "EUR/USD (ユーロドル)": "EURUSD=X",
     "GBP/USD (ポンドドル)": "GBPUSD=X",
-    "AUD/JPY (豪ドル円)": "AUDJPY=X",
+    "EUR/GBP (ユーロポンド)": "EURGBP=X",
+    "AUD/USD (豪ドルドル)": "AUDUSD=X",
     "NZD/JPY (キウイ円)": "NZDJPY=X",
-    "CAD/JPY (カナダ円)": "CADJPY=X",
-    "CHF/JPY (フラン円)": "CHFJPY=X"
+    "USD/CAD (ドルカナダ)": "USDCAD=X",
+    "USD/CHF (ドルフラン)": "USDCHF=X"
 }
 
 # --- サイドバーの設定 ---
