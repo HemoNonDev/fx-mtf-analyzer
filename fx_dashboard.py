@@ -38,9 +38,20 @@ st.sidebar.subheader("📅 表示期間の設定")
 days_daily = st.sidebar.slider("日足の表示期間（日数）", min_value=30, max_value=365, value=240, step=10)
 days_4h = st.sidebar.slider("4時間足の表示期間（日数）", min_value=15, max_value=180, value=30, step=5)
 
-st.sidebar.subheader("🎯 水平線の設定")
-pips_range = st.sidebar.number_input("価格帯の幅（pips）", min_value=5, max_value=50, value=10)
-min_touches = st.sidebar.number_input("最小反発回数（点数）", min_value=2, max_value=10, value=3)
+# st.sidebar.subheader("🎯 水平線の設定")
+# pips_range = st.sidebar.number_input("価格帯の幅（pips）", min_value=5, max_value=50, value=10)
+# min_touches = st.sidebar.number_input("最小反発回数（点数）", min_value=2, max_value=10, value=3)
+
+st.sidebar.subheader("🎯 サポレジゾーンの設定")
+# --- 日足用の設定 ---
+st.sidebar.markdown("**【日足】**")
+pips_range_daily = st.sidebar.number_input("日足: 価格帯の幅（pips）", min_value=5, max_value=50, value=15, key="pips_d")
+min_touches_daily = st.sidebar.number_input("日足: 最小反発回数", min_value=2, max_value=10, value=2, key="touches_d")
+
+# --- 4時間足用の設定 ---
+st.sidebar.markdown("**【4時間足】**")
+pips_range_4h = st.sidebar.number_input("4H: 価格帯の幅（pips）", min_value=5, max_value=50, value=10, key="pips_4h")
+min_touches_4h = st.sidebar.number_input("4H: 最小反発回数", min_value=2, max_value=10, value=5, key="touches_4h")
 
 st.sidebar.subheader("📐 チャート画面の設定")
 chart_height = st.sidebar.slider("チャートの縦幅（px）", min_value=300, max_value=800, value=450, step=25)
@@ -255,14 +266,32 @@ if not df_4h.empty:
     rate_placeholder.metric(label="最新レート", value=f"{latest:.{digits}f}")
 
 # --- メイン画面描画（上下2段固定） ---
+# 日足チャート描画（日足用の設定値を渡す）
 if not df_daily.empty:
-    fig_daily = create_plotly_chart(df_daily, True, selected_pair_name, pips_range, min_touches, label_text="Daily", height=chart_height)
+    fig_daily = create_plotly_chart(
+        df_daily,
+        True,
+        selected_pair_name,
+        pips_range_daily,    # 日足用pips幅
+        min_touches_daily,   # 日足用最小反発回数
+        label_text="Daily",
+        height=chart_height,
+    )
     st.plotly_chart(fig_daily, use_container_width=True)
 else:
     st.error("日足データの取得に失敗しました。時間をおいて再試行してください。")
 
+# 4時間足チャート描画（4時間足用の設定値を渡す）
 if not df_4h.empty:
-    fig_4h = create_plotly_chart(df_4h, False, selected_pair_name, pips_range, min_touches, label_text="4H", height=chart_height)
+    fig_4h = create_plotly_chart(
+        df_4h,
+        False,
+        selected_pair_name,
+        pips_range_4h,       # 4H用pips幅
+        min_touches_4h,      # 4H用最小反発回数
+        label_text="4H",
+        height=chart_height,
+    )
     st.plotly_chart(fig_4h, use_container_width=True)
 else:
     st.error(
