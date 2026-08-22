@@ -62,12 +62,16 @@ chart_height = st.sidebar.slider("チャートの縦幅（px）", min_value=300,
 st.sidebar.markdown("---")
 st.sidebar.caption("※オレンジ帯：日足サポレジゾーン / 紫帯：4時間足サポレジゾーン")
 
+# 4. 主要機能の実装とコード解説
+# 4-1. 日足と4時間足データの取得と事前準備
+# 4-1-1. アプリの高速化と処理の基準日設定
 # --- データ取得・計算関数 ---
 @st.cache_data(ttl=3600)  # 1時間キャッシュ（yfinanceのAPI負荷軽減と自動更新）
 def load_fx_data_mtf_separated(symbol, d_daily, d_4h):
     # 時刻成分を排除し、今日の00:00:00を取得
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    
+
+    # 4-1-2. 移動平均線の計算が途切れないよう「少し多めに」データを遡って取得する
     # 1. 日足データ取得（MA100計算用に120日分のバッファ）
     start_date_daily = today - timedelta(days=d_daily + 120)
     df_daily = yf.download(symbol, start=start_date_daily, end=today, interval="1d", progress=False)
@@ -82,6 +86,7 @@ def load_fx_data_mtf_separated(symbol, d_daily, d_4h):
     if isinstance(df_4h.columns, pd.MultiIndex):
         df_4h.columns = df_4h.columns.get_level_values(0)
 
+    # 4-1-3. 日足・4時間足データの加工（時差調整・MA計算・期間カット）
     # --- 日足の加工 ---
     if not df_daily.empty:
         if df_daily.index.tz is not None:
@@ -107,6 +112,7 @@ def load_fx_data_mtf_separated(symbol, d_daily, d_4h):
 
     return df_4h, df_daily
 
+# 4-2. ノイズを除外するサポレジゾーン自動検知ロジック
 # 水平線（ゾーン）抽出アルゴリズム
 def find_advanced_lines(
     df,
@@ -119,6 +125,7 @@ def find_advanced_lines(
     lows = df["Low"]
     hp, lp = [], []
 
+    # 4-2-1. チャート上の「山（高値）」と「谷（安値）」の検出
     # 1. ピボット（山・谷）の抽出
     for i in range(3, len(df) - 3):
         # 高値の山（ピボットハイ）判定
@@ -143,6 +150,7 @@ def find_advanced_lines(
         ):
             lp.append(lows.iloc[i])
 
+    # 4-2-2. 通貨ペアごとの「1pipの単位」と許容エリア（±5pips）の設定
     # 2. 1pipの単位判定と設定
     if "JPY" in symbol_name:
         pip_unit = 0.01
@@ -159,6 +167,7 @@ def find_advanced_lines(
     else:
         return []
 
+    # 4-2-3. ゾーン内の反発回数カウントとロールリバーサル判定
     # 3. ゾーンの判定と重複チェック
     for center_pr in all_pts:
         y0 = center_pr - half_width
@@ -198,6 +207,8 @@ def find_advanced_lines(
 
     return zones_info
 
+# 4-3. `Plotly`を使ったチャート構築
+# 4-3-1. ローソク足パーツの作成
 # チャート作成関数
 def create_plotly_chart(df, is_daily, symbol_name, pips_win, min_t, label_text, height=450):
     fig = go.Figure(data=[go.Candlestick(
@@ -210,7 +221,8 @@ def create_plotly_chart(df, is_daily, symbol_name, pips_win, min_t, label_text, 
         decreasing_line_color='#2196f3', # 陰線（青）
         showlegend=False
     )])
-    
+
+    # 4-3-2. 移動平均線（MA）と自動水平線の重ね合わせ
     # 移動平均線（MA）の描画とロールリバーサル色の分岐
     if is_daily:
         # 日足チャート：日足20MA（オレンジ）、週足20MA相当（青）
@@ -237,7 +249,8 @@ def create_plotly_chart(df, is_daily, symbol_name, pips_win, min_t, label_text, 
             line_width=0,                 # 枠線なし
             layer="below",                # ローソク足の裏に配置
         )
-    
+
+    # 4-3-3. タイトル表示およびデザイン・レイアウトの最適化
     # 左上の "Daily" / "4H" ラベル
     fig.add_annotation(
         xref="paper", yref="paper",
@@ -248,6 +261,7 @@ def create_plotly_chart(df, is_daily, symbol_name, pips_win, min_t, label_text, 
         align="left"
     )
 
+    # 余白や縦幅などのレイアウト調整
     fig.update_layout(
         margin=dict(l=10, r=10, t=30, b=10),
         height=height,
@@ -258,6 +272,7 @@ def create_plotly_chart(df, is_daily, symbol_name, pips_win, min_t, label_text, 
     )
     return fig
 
+# 4-4. データ取得と上下2段チャートの描画
 # データの読み込み
 with st.spinner(f"{selected_pair_name} のデータを解析中..."):
     df_4h, df_daily = load_fx_data_mtf_separated(selected_symbol, days_daily, days_4h)
